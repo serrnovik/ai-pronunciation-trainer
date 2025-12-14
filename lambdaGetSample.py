@@ -24,12 +24,15 @@ class TextDataset():
 sample_folder = "./databases/"
 lambda_database = {}
 lambda_ipa_converter = {}
-available_languages = ['de', 'en', 'fr']
+available_languages = ['de', 'en', 'fr', 'es']
 
 for language in available_languages:
     df = pd.read_csv(sample_folder+'data_'+language+'.csv',delimiter=';')
     lambda_database[language] = TextDataset(df)
     lambda_ipa_converter[language] = RuleBasedModels.get_phonem_converter(language)
+
+import generator
+generator_instance = generator.SentenceGenerator()
 
 lambda_translate_new_sample = False
 
@@ -42,24 +45,35 @@ def lambda_handler(event, context):
 
     language = body['language']
 
-    sample_in_category = False
+    # Try dynamic generation first
+    generated_sentence = None
+    if generator_instance.enabled:
+        print("Attempting generation...")
+        generated_sentence = generator_instance.generate_sample(language, category)
+    
+    if generated_sentence:
+        current_transcript = [generated_sentence]
+    else:
+        # Fallback to CSV
+        print("Fallback to CSV...")
+        sample_in_category = False
 
-    while(not sample_in_category):
-        valid_sequence = False
-        while not valid_sequence:
-            try:
-                sample_idx = random.randint(0, len(lambda_database[language]))
-                current_transcript = lambda_database[language][
-                    sample_idx]
-                valid_sequence = True
-            except:
-                pass
+        while(not sample_in_category):
+            valid_sequence = False
+            while not valid_sequence:
+                try:
+                    sample_idx = random.randint(0, len(lambda_database[language]))
+                    current_transcript = lambda_database[language][
+                        sample_idx]
+                    valid_sequence = True
+                except:
+                    pass
 
-        sentence_category = getSentenceCategory(
-            current_transcript[0])
+            sentence_category = getSentenceCategory(
+                current_transcript[0])
 
-        sample_in_category = (sentence_category ==
-                              category) or category == 0
+            sample_in_category = (sentence_category ==
+                                  category) or category == 0
 
     translated_trascript = ""
 

@@ -17,6 +17,7 @@ trainer_SST_lambda = {}
 trainer_SST_lambda['de'] = pronunciationTrainer.getTrainer("de")
 trainer_SST_lambda['en'] = pronunciationTrainer.getTrainer("en")
 trainer_SST_lambda['fr'] = pronunciationTrainer.getTrainer("fr")
+trainer_SST_lambda['es'] = pronunciationTrainer.getTrainer("es")
 
 transform = Resample(orig_freq=48000, new_freq=16000)
 

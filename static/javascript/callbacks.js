@@ -275,6 +275,13 @@ const changeLanguage = (language, generateNewSample = false) => {
             languageIdentifier = 'fr';
             languageName = 'Thomas';
             break;
+            
+        case 'es':
+
+            document.getElementById("languageBox").innerHTML = "Spanish";
+            languageIdentifier = 'es';
+            languageName = 'Monica';
+            break;
     };
     
     // Save to localStorage
@@ -608,27 +615,30 @@ const initializeServer = async () => {
     }
 }
 
-// Ensure voices are loaded before setting initial language
-if (speechSynthesis.onvoiceschanged !== undefined) {
-    speechSynthesis.addEventListener('voiceschanged', () => changeLanguage(AILanguage, false));
-}
-// Fallback/Initial load
-setTimeout(() => changeLanguage(AILanguage, false), 500);
+// Initialize Application when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    // Ensure voices are loaded before setting initial language
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.addEventListener('voiceschanged', () => changeLanguage(AILanguage, false));
+    }
+    // Fallback/Initial load
+    setTimeout(() => changeLanguage(AILanguage, false), 500);
 
-// Keyboard Shortcuts
-document.addEventListener('keydown', (event) => {
-    // Space for Recording
-    if (event.code === 'Space') {
-        // Prevent default scrolling only if we are taking action
-        if (!document.getElementById("recordAudio").classList.contains('disabled')) {
-            event.preventDefault();
-            updateRecordingState();
+    // Keyboard Shortcuts
+    document.addEventListener('keydown', (event) => {
+        // Space for Recording
+        if (event.code === 'Space') {
+            // Prevent default scrolling only if we are taking action
+            if (!document.getElementById("recordAudio").classList.contains('disabled')) {
+                event.preventDefault();
+                updateRecordingState();
+            }
         }
-    }
-    // Right Arrow for Next
-    if (event.code === 'ArrowRight') {
-        if (!document.getElementById("buttonNext").disabled && document.getElementById("buttonNext").onclick) {
-            getNextSample();
+        // Right Arrow for Next
+        if (event.code === 'ArrowRight') {
+            if (!document.getElementById("buttonNext").disabled && document.getElementById("buttonNext").onclick) {
+                getNextSample();
+            }
         }
-    }
+    });
 });
