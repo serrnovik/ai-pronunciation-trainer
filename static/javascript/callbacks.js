@@ -69,7 +69,6 @@ const unblockUI = () => {
     document.getElementById("recordAudio").classList.remove('disabled');
     document.getElementById("playSampleAudio").classList.remove('disabled');
     document.getElementById("buttonNext").onclick = () => getNextSample();
-    document.getElementById("nextButtonDiv").classList.remove('disabled');
     document.getElementById("original_script").classList.remove('disabled');
     document.getElementById("buttonNext").style["background-color"] = '#58636d';
 
@@ -94,9 +93,9 @@ const blockUI = () => {
 
 };
 
-const UIError = () => {
+const UIError = (e) => {
     blockUI();
-    document.getElementById("buttonNext").onclick = () => getNextSample(); //If error, user can only try to get a new sample
+    document.getElementById("buttonNext").onclick = () => getNextSample(); 
     document.getElementById("buttonNext").style["background-color"] = '#58636d';
 
     document.getElementById("recorded_ipa_script").innerHTML = "";
@@ -104,7 +103,12 @@ const UIError = () => {
     document.getElementById("ipa_script").innerHTML = "Error"
 
     document.getElementById("main_title").innerHTML = 'Server Error';
-    document.getElementById("original_script").innerHTML = 'Server error. Either the daily quota of the server is over or there was some internal error. You can try to generate a new sample in a few seconds. If the error persist, try comming back tomorrow or download the local version from Github :)';
+    let msg = 'Server error. Either the daily quota of the server is over or there was some internal error.';
+    if (e) {
+        msg += ' <br/><b>Details:</b> ' + e.toString();
+        if (e.stack) msg += '<br/><pre style="text-align:left; font-size:0.8em; overflow:auto; max-height:200px;">' + e.stack + '</pre>';
+    }
+    document.getElementById("original_script").innerHTML = msg;
 };
 
 const UINotSupported = () => {
@@ -164,13 +168,17 @@ const getNextSample = async () => {
         UIError();
         return;
     }
+    
+    // Show overlay
+    const overlay = document.getElementById("loading-overlay");
+    if (overlay) overlay.classList.add("visible");
 
     if (soundFileBad == null)
         cacheSoundFiles();
 
 
 
-    updateScore(parseFloat(document.getElementById("pronunciation_accuracy").innerHTML));
+    updateScore(parseFloat(currentScore));
 
     document.getElementById("main_title").innerHTML = "Processing new sample...";
 
@@ -216,7 +224,11 @@ const getNextSample = async () => {
                 document.getElementById("recorded_ipa_script").innerHTML = ""
                 document.getElementById("pronunciation_accuracy").innerHTML = "";
                 document.getElementById("single_word_ipa_pair").innerHTML = "Reference | Spoken"
-                document.getElementById("section_accuracy").innerHTML = "| Score: " + currentScore.toString() + " - (" + currentSample.toString() + ")";
+                
+                // Update Badge
+                document.getElementById("score-value").innerHTML = currentScore.toString();
+                document.getElementById("score-count").innerHTML = "(" + currentSample.toString() + ")";
+                
                 currentSample += 1;
 
                 document.getElementById("main_title").innerHTML = page_title;
@@ -225,13 +237,18 @@ const getNextSample = async () => {
 
                 currentSoundRecorded = false;
                 unblockUI();
+                const overlay = document.getElementById("loading-overlay");
+                if (overlay) overlay.classList.remove("visible");
                 document.getElementById("playRecordedAudio").classList.add('disabled');
 
             })
     }
-    catch
+    catch (e)
     {
-        UIError();
+        console.error(e);
+        const overlay = document.getElementById("loading-overlay");
+        if (overlay) overlay.classList.remove("visible");
+        UIError(e);
     }
 
 
@@ -728,22 +745,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // Fallback/Initial load
     setTimeout(() => changeLanguage(AILanguage, false), 500);
+});
 
-    // Keyboard Shortcuts
-    document.addEventListener('keydown', (event) => {
-        // Space for Recording
-        if (event.code === 'Space') {
-            // Prevent default scrolling only if we are taking action
-            if (!document.getElementById("recordAudio").classList.contains('disabled')) {
-                event.preventDefault();
-                updateRecordingState();
-            }
+// Keyboard Shortcuts
+document.addEventListener('keydown', function(event) {
+    // Ignore if typing in an input field
+    const activeElement = document.activeElement;
+    const isInput = activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable;
+    if (isInput) return;
+
+    if (event.code === 'Space') {
+        event.preventDefault(); 
+        updateRecordingState();
+    }
+    else if (event.code === 'Enter') {
+        if (event.shiftKey) {
+             // Shift + Enter -> Play Recording
+             event.preventDefault();
+             playRecording();
+        } else if (event.ctrlKey || event.metaKey) {
+             // Ctrl/Cmd + Enter -> Play Reference
+             event.preventDefault();
+             playAudio();
         }
-        // Right Arrow for Next
-        if (event.code === 'ArrowRight') {
-            if (!document.getElementById("buttonNext").disabled && document.getElementById("buttonNext").onclick) {
-                getNextSample();
-            }
-        }
-    });
+    }
+    else if (event.code === 'ArrowRight') {
+         event.preventDefault();
+         getNextSample();
+    }
+});
+
+// Force Difficulty Check on Init
+document.addEventListener('DOMContentLoaded', () => {
+    // Check which radio is checked by default
+    if (document.getElementById('lengthCat1').checked) sample_difficult = 0;
+    else if (document.getElementById('lengthCat2').checked) sample_difficult = 1;
+    else if (document.getElementById('lengthCat3').checked) sample_difficult = 2;
+    else if (document.getElementById('lengthCat4').checked) sample_difficult = 3;
 });

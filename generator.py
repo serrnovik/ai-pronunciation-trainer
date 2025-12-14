@@ -16,16 +16,16 @@ class SentenceGenerator:
             return None
 
         level_map = {
-            1: "short and simple",
-            2: "standard length",
-            3: "complex and long"
+            1: "very short (maximum 5 words)",
+            2: "medium length (maximum 10 words)",
+            3: "long and complex (maximum 20 words)"
         }
         
         # Default to standard if level is weird, though 0 is handled as 'random' usually
         if level_int == 0: 
              level_desc = random.choice(list(level_map.values()))
         else:
-             level_desc = level_map.get(level_int, "standard length")
+             level_desc = level_map.get(level_int, "medium length (maximum 10 words)")
 
         lang_map = {
             'en': 'English',
