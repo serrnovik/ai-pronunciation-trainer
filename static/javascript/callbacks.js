@@ -50,7 +50,22 @@ let voice_idx = 0;
 let voice_synth = null;
 
 //############################ UI general control functions ###################
+let isPlaying = false;
+
+const setPlayButtonState = (isPlayingState) => {
+    isPlaying = isPlayingState;
+    const playBtn = document.getElementById("playSampleAudio");
+    const playRecBtn = document.getElementById("playRecordedAudio");
+    const icon = isPlaying ? "stop" : "play_arrow";
+    const recIcon = isPlaying ? "stop" : "record_voice_over";
+    
+    // We update both icons to be safe, though usually only one plays at a time
+    if (playBtn) playBtn.innerHTML = `<i class="material-icons icon-text">${icon}</i>`;
+    if (playRecBtn) playRecBtn.innerHTML = `<i class="material-icons icon-text">${recIcon}</i>`;
+};
+
 const unblockUI = () => {
+    setPlayButtonState(false);
     document.getElementById("recordAudio").classList.remove('disabled');
     document.getElementById("playSampleAudio").classList.remove('disabled');
     document.getElementById("buttonNext").onclick = () => getNextSample();
@@ -61,16 +76,18 @@ const unblockUI = () => {
     if (currentSoundRecorded)
         document.getElementById("playRecordedAudio").classList.remove('disabled');
 
-
 };
 
 const blockUI = () => {
-
+    // Don't disable play buttons if we are playing, so we can stop
+    if (!isPlaying) {
+        document.getElementById("playSampleAudio").classList.add('disabled');
+        document.getElementById("playRecordedAudio").classList.add('disabled');
+    }
+    
     document.getElementById("recordAudio").classList.add('disabled');
-    document.getElementById("playSampleAudio").classList.add('disabled');
     document.getElementById("buttonNext").onclick = null;
     document.getElementById("original_script").classList.add('disabled');
-    document.getElementById("playRecordedAudio").classList.add('disabled');
 
     document.getElementById("buttonNext").style["background-color"] = '#adadad';
 
@@ -257,28 +274,28 @@ const changeLanguage = (language, generateNewSample = false) => {
     switch (language) {
         case 'de':
 
-            document.getElementById("languageBox").innerHTML = "German";
+            document.getElementById("languageBox").innerHTML = '<span class="flag-icon flag-icon-de shadow-sm" style="margin-right: 8px;"></span>German';
             languageIdentifier = 'de';
             languageName = 'Anna';
             break;
 
         case 'en':
 
-            document.getElementById("languageBox").innerHTML = "English";
+            document.getElementById("languageBox").innerHTML = '<span class="flag-icon flag-icon-gb shadow-sm" style="margin-right: 8px;"></span>English';
             languageIdentifier = 'en';
             languageName = 'Daniel';
             break;
             
         case 'fr':
 
-            document.getElementById("languageBox").innerHTML = "French";
+            document.getElementById("languageBox").innerHTML = '<span class="flag-icon flag-icon-fr shadow-sm" style="margin-right: 8px;"></span>French';
             languageIdentifier = 'fr';
             languageName = 'Thomas';
             break;
             
         case 'es':
 
-            document.getElementById("languageBox").innerHTML = "Spanish";
+            document.getElementById("languageBox").innerHTML = '<span class="flag-icon flag-icon-es shadow-sm" style="margin-right: 8px;"></span>Spanish';
             languageIdentifier = 'es';
             languageName = 'Monica';
             break;
@@ -445,9 +462,26 @@ const playSoundForAnswerAccuracy = async (accuracy) => {
 }
 
 const playAudio = async () => {
-
+    if (isPlaying) {
+        synth.cancel();
+        unblockUI();
+        return;
+    }
+    
+    setPlayButtonState(true);
     document.getElementById("main_title").innerHTML = "Generating sound...";
-    playWithMozillaApi(currentText[0]);
+    
+    const selection = getSelectionIndices();
+    let textToPlay = currentText[0];
+    
+    if (selection) {
+        // Reconstruct the text from selected words
+        const words = currentText[0].split(' ');
+        // selection.end is inclusive index
+        textToPlay = words.slice(selection.start, selection.end + 1).join(' ');
+    }
+    
+    playWithMozillaApi(textToPlay);
     document.getElementById("main_title").innerHTML = "Current Sound was played";
 
 };
@@ -461,40 +495,110 @@ function playback() {
 
 
 const playRecording = async (start = null, end = null) => {
+    if (isPlaying) {
+        audioRecorded.pause();
+        audioRecorded.currentTime = 0;
+        unblockUI();
+        return;
+    }
+
+    setPlayButtonState(true);
     blockUI();
 
     try {
         if (start == null || end == null) {
-            endTimeInMs = Math.round(audioRecorded.duration * 1000)
-            audioRecorded.addEventListener("ended", function () {
-                audioRecorded.currentTime = 0;
-                unblockUI();
-                document.getElementById("main_title").innerHTML = "Recorded Sound was played";
-            });
-            await audioRecorded.play();
+            
+            const selection = getSelectionIndices();
+            
+            if (selection && startTime && endTime) {
+                 // Play selected range
+                 const sTime = parseFloat(startTime.split(' ')[selection.start]);
+                 const eTime = parseFloat(endTime.split(' ')[selection.end]);
+                 
+                 audioRecorded.currentTime = sTime;
+                 
+                 const durationMs = Math.round((eTime - sTime) * 1000);
+                 
+                 setTimeout(function () {
+                    if (isPlaying) {
+                        unblockUI();
+                        audioRecorded.pause();
+                        audioRecorded.currentTime = 0;
+                        document.getElementById("main_title").innerHTML = "Recorded Sound was played";
+                    }
+                 }, durationMs);
+                 
+                 await audioRecorded.play();
+
+            } else {
+                // Play full recording (or from start if specified)
+                if (start != null) {
+                    audioRecorded.currentTime = start;
+                } else {
+                    endTimeInMs = Math.round(audioRecorded.duration * 1000)
+                }
+                
+                audioRecorded.addEventListener("ended", function () {
+                    audioRecorded.currentTime = 0;
+                    unblockUI();
+                    document.getElementById("main_title").innerHTML = "Recorded Sound was played";
+                }, {once: true}); 
+                await audioRecorded.play();
+            }
 
         }
         else {
+            // Logic for specific segment playback (not used by new "play from word" flow but kept for compatibility)
             audioRecorded.currentTime = start;
             audioRecorded.play();
             durationInSeconds = end - start;
             endTimeInMs = Math.round(durationInSeconds * 1000);
             setTimeout(function () {
-                unblockUI();
-                audioRecorded.pause();
-                audioRecorded.currentTime = 0;
-                document.getElementById("main_title").innerHTML = "Recorded Sound was played";
+                if (isPlaying) { // Only stop if still playing this specific segment
+                    unblockUI();
+                    audioRecorded.pause();
+                    audioRecorded.currentTime = 0;
+                    document.getElementById("main_title").innerHTML = "Recorded Sound was played";
+                }
             }, endTimeInMs);
 
         }
     }
     catch {
         UINotSupported();
+        unblockUI();
     }
 };
 
-const playNativeAndRecordedWord = async (word_idx) => {
 
+const getSelectionIndices = () => {
+    const selection = window.getSelection();
+    if (selection.rangeCount === 0 || selection.toString().trim() === '') return null;
+
+    const range = selection.getRangeAt(0);
+    const div = document.getElementById("original_script");
+    
+    // Find all 'a' tags with data-word-index within the range
+    const allLinks = Array.from(div.getElementsByTagName("a"));
+    const selectedLinks = allLinks.filter(link => selection.containsNode(link, true));
+
+    if (selectedLinks.length === 0) return null;
+
+    const indices = selectedLinks.map(link => parseInt(link.getAttribute("data-word-index"))).sort((a, b) => a - b);
+    return {
+        start: indices[0],
+        end: indices[indices.length - 1]
+    };
+};
+
+const playNativeAndRecordedWord = async (word_idx) => {
+    // If there is a selection, we ignore the clicked word logic and play the selection instead
+    // Unless the click was part of making the selection
+    
+    // Actually, usually click clears selection unless it's a drag.
+    // The requirement is "clicking on the word -> play from word", "selecting text -> play text"
+    // So this function (onClick) should remain strictly for "play from word"
+    
     if (isNativeSelectedForPlayback)
         playCurrentWord(word_idx)
     else
@@ -543,7 +647,8 @@ const playRecordedWord = (word_idx) => {
     wordStartTime = parseFloat(startTime.split(' ')[word_idx]);
     wordEndTime = parseFloat(endTime.split(' ')[word_idx]);
 
-    playRecording(wordStartTime, wordEndTime);
+    // Play from start to end (pass null as end time)
+    playRecording(wordStartTime, null);
 
 }
 
@@ -561,15 +666,15 @@ const blobToBase64 = blob => new Promise((resolve, reject) => {
 
 const wrapWordForPlayingLink = (word, word_idx, isFromRecording, word_accuracy_color) => {
     if (isFromRecording)
-        return '<a style = " white-space:nowrap; color:' + word_accuracy_color + '; " href="javascript:playRecordedWord(' + word_idx.toString() + ')"  >' + word + '</a> '
+        return '<a data-word-index="' + word_idx + '" style = " white-space:nowrap; color:' + word_accuracy_color + '; " href="javascript:playRecordedWord(' + word_idx.toString() + ')"  >' + word + '</a> '
     else
-        return '<a style = " white-space:nowrap; color:' + word_accuracy_color + '; " href="javascript:playCurrentWord(' + word_idx.toString() + ')" >' + word + '</a> '
+        return '<a data-word-index="' + word_idx + '" style = " white-space:nowrap; color:' + word_accuracy_color + '; " href="javascript:playCurrentWord(' + word_idx.toString() + ')" >' + word + '</a> '
 }
 
 const wrapWordForIndividualPlayback = (word, word_idx) => {
 
 
-    return '<a onmouseover="generateWordModal(' + word_idx.toString() + ')" style = " white-space:nowrap; " href="javascript:playNativeAndRecordedWord(' + word_idx.toString() + ')"  >' + word + '</a> '
+    return '<a data-word-index="' + word_idx + '" onmouseover="generateWordModal(' + word_idx.toString() + ')" style = " white-space:nowrap; " href="javascript:playNativeAndRecordedWord(' + word_idx.toString() + ')"  >' + word + '</a> '
 
 }
 
