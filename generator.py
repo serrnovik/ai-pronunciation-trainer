@@ -28,13 +28,13 @@ class SentenceGenerator:
              level_desc = level_map.get(level_int, "standard length")
 
         lang_map = {
-            'en': '🇬🇧 English',
-            'de': '🇩🇪 German',
-            'fr': '🇫🇷 French',
-            'es': '🇪🇸 Spanish'
+            'en': 'English',
+            'de': 'German',
+            'fr': 'French',
+            'es': 'Spanish'
         }
         
-        target_lang = lang_map.get(language, '🇬🇧 English')
+        target_lang = lang_map.get(language, 'English')
 
         input_text = f"Write a {level_desc} sentence in {target_lang} for a language learner. Output only the sentence."
         
