@@ -28,6 +28,9 @@ let startTime, endTime;
 
 // API related variables 
 let AILanguage = "de"; // Standard is German
+if (typeof(Storage) !== "undefined" && localStorage.getItem("selectedLanguage")) {
+    AILanguage = localStorage.getItem("selectedLanguage");
+}
 
 
 let STScoreAPIKey = 'rll5QsTiv83nti99BW6uCmvs9BDVxSB39SVFceYb'; // Public Key. If, for some reason, you would like a private one, send-me a message and we can discuss some possibilities
@@ -265,7 +268,19 @@ const changeLanguage = (language, generateNewSample = false) => {
             languageIdentifier = 'en';
             languageName = 'Daniel';
             break;
+            
+        case 'fr':
+
+            document.getElementById("languageBox").innerHTML = "French";
+            languageIdentifier = 'fr';
+            languageName = 'Thomas';
+            break;
     };
+    
+    // Save to localStorage
+    if (typeof(Storage) !== "undefined") {
+        localStorage.setItem("selectedLanguage", language);
+    }
 
     for (idx = 0; idx < voices.length; idx++) {
         if (voices[idx].lang.slice(0, 2) == languageIdentifier && voices[idx].name == languageName) {
@@ -593,3 +608,27 @@ const initializeServer = async () => {
     }
 }
 
+// Ensure voices are loaded before setting initial language
+if (speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.addEventListener('voiceschanged', () => changeLanguage(AILanguage, false));
+}
+// Fallback/Initial load
+setTimeout(() => changeLanguage(AILanguage, false), 500);
+
+// Keyboard Shortcuts
+document.addEventListener('keydown', (event) => {
+    // Space for Recording
+    if (event.code === 'Space') {
+        // Prevent default scrolling only if we are taking action
+        if (!document.getElementById("recordAudio").classList.contains('disabled')) {
+            event.preventDefault();
+            updateRecordingState();
+        }
+    }
+    // Right Arrow for Next
+    if (event.code === 'ArrowRight') {
+        if (!document.getElementById("buttonNext").disabled && document.getElementById("buttonNext").onclick) {
+            getNextSample();
+        }
+    }
+});

@@ -54,6 +54,8 @@
                             style="padding-top: 3px; ">German</a>
                         <a href="javascript:changeLanguage('en',true)" class="accuracy-text ;"
                             style="padding-top: 3px; ">English</a>
+                        <a href="javascript:changeLanguage('fr',true)" class="accuracy-text ;"
+                            style="padding-top: 3px; ">French</a>
                     </div>
                 </div>
 
@@ -113,7 +115,7 @@
             </div>
 
             <div id="nextButtonDiv" style="position: absolute; left: 90%; top:0%; height: 100%;" class="flex-container">
-                <button id="buttonNext" class="expanded button-next" onclick="javascript:getNextSample()">
+                <button id="buttonNext" class="expanded button-next" onclick="javascript:getNextSample()" title="Next Sample (→)">
                     <span></span></a>
             </div>
         </div>
@@ -131,7 +133,7 @@
 
         <div id="btn-record" class="expanded mic-button-div">
             <a id="recordAudio" href="javascript:updateRecordingState()" class="round-button-mic disabled"
-                style="color:white; text-align:center; "><i id="recordIcon" class="material-icons icon-text-mic">mic</i>
+                style="color:white; text-align:center; " title="Record (Space)"><i id="recordIcon" class="material-icons icon-text-mic">mic</i>
             </a>
         </div>
 
