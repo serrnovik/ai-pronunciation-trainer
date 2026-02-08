@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Models and Large Files
+*.pickle
+*.zip
+*.7z
+*.tar.gz

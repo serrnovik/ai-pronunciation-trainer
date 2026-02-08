@@ -55,6 +55,12 @@ body.app-body {
     color: var(--primary-color);
 }
 
+.app-logo {
+    height: 50px;
+    width: auto;
+
+}
+
 h1#main_title {
     font-size: 1.25rem;
     font-weight: 700;
@@ -158,10 +164,10 @@ h1#main_title {
     width: 100%;
     height: 100%;
     border: none;
-    background: transparent;
+    background-color: var(--primary-color);
     cursor: pointer;
     font-size: 1.5rem;
-    color: var(--secondary-color);
+    color: white;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -169,12 +175,11 @@ h1#main_title {
 }
 
 .button-next:hover {
-    background-color: #cbd5e1;
+    background-color: #2980b9;
 }
 
 .button-next::after {
-    content: '→';
-    font-weight: bold;
+    content: none;
 }
 
 /* Legend */
@@ -372,6 +377,25 @@ h1#main_title {
     display: block;
 }
 
+/* Waveform Containers */
+.waveform-container {
+    width: 100%;
+    height: 80px;
+    margin: 1rem 0;
+    border-radius: var(--radius-md);
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    position: relative;
+    display: none;
+    /* Hidden by default */
+}
+
+.waveform-container.loaded {
+    display: block;
+    /* Show when loaded */
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .app-header {
@@ -426,5 +450,15 @@ h1#main_title {
     .difficulty-level {
         width: 100%;
         justify-content: center;
+    }
+
+    /* Waveforms */
+    .waveform-container {
+        width: 100%;
+        height: 60px;
+        margin-bottom: 1rem;
+        border-radius: var(--radius-md);
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
     }
 }

@@ -5,6 +5,8 @@ import RuleBasedModels
 import epitran
 import random
 import pickle
+import models
+import AIModels
 
 
 class TextDataset():
@@ -36,6 +38,9 @@ generator_instance = generator.SentenceGenerator()
 
 lambda_translate_new_sample = False
 
+# Cache for translation models
+translation_cache = {}
+
 
 def lambda_handler(event, context):
 
@@ -47,42 +52,63 @@ def lambda_handler(event, context):
 
     # Try dynamic generation first
     generated_sentence = None
-    if generator_instance.enabled:
-        print("Attempting generation...")
-        generated_sentence = generator_instance.generate_sample(language, category)
     
-    if generated_sentence:
-        current_transcript = [generated_sentence]
+    if 'custom_text' in body:
+        current_transcript = [body['custom_text']]
     else:
-        # Fallback to CSV
-        print("Fallback to CSV...")
-        sample_in_category = False
+        if generator_instance.enabled:
+            print("Attempting generation...")
+            generated_sentence = generator_instance.generate_sample(language, category)
+        
+        if generated_sentence:
+            current_transcript = [generated_sentence]
+        else:
+            # Fallback to CSV
+            print("Fallback to CSV...")
+            sample_in_category = False
 
-        while(not sample_in_category):
-            valid_sequence = False
-            while not valid_sequence:
-                try:
-                    sample_idx = random.randint(0, len(lambda_database[language]))
-                    current_transcript = lambda_database[language][
-                        sample_idx]
-                    valid_sequence = True
-                except:
-                    pass
+            while(not sample_in_category):
+                valid_sequence = False
+                while not valid_sequence:
+                    try:
+                        sample_idx = random.randint(0, len(lambda_database[language]))
+                        current_transcript = lambda_database[language][
+                            sample_idx]
+                        valid_sequence = True
+                    except:
+                        pass
 
-            sentence_category = getSentenceCategory(
-                current_transcript[0])
+                sentence_category = getSentenceCategory(
+                    current_transcript[0])
 
-            sample_in_category = (sentence_category ==
-                                  category) or category == 0
+                sample_in_category = (sentence_category ==
+                                      category) or category == 0
 
     translated_trascript = ""
 
     current_ipa = lambda_ipa_converter[language].convertToPhonem(
         current_transcript[0])
 
+    # Translate to English if not already in English
+    translated_transcript = ""
+    if language != 'en':
+        try:
+            if language not in translation_cache:
+                print(f"Loading translation model for {language}")
+                model, tokenizer = models.getTranslationModel(language)
+                translator = AIModels.NeuralTranslator(model, tokenizer)
+                translation_cache[language] = translator
+
+            translator = translation_cache[language]
+            translated_transcript = translator.translateSentence(current_transcript[0])
+            print(f"Translated '{current_transcript[0]}' to '{translated_transcript}'")
+        except Exception as e:
+            print(f"Translation failed for {language}: {e}")
+            translated_transcript = f"[Translation unavailable for {language}]"
+
     result = {'real_transcript': current_transcript,
               'ipa_transcript': current_ipa,
-              'transcript_translation': translated_trascript}
+              'transcript_translation': translated_transcript}
 
     return json.dumps(result)
 

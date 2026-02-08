@@ -3,6 +3,7 @@ import webbrowser
 import os
 from flask_cors import CORS
 import json
+import traceback
 
 import lambdaTTS
 import lambdaSpeechToScore
@@ -39,17 +40,12 @@ def GetAccuracyFromRecordedAudio():
         event = {'body': json.dumps(request.get_json(force=True))}
         lambda_correct_output = lambdaSpeechToScore.lambda_handler(event, [])
     except Exception as e:
-        print('Error: ', str(e))
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Access-Control-Allow-Headers': '*',
-                'Access-Control-Allow-Credentials': "true",
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
-            },
-            'body': ''
-        }
+        tb = traceback.format_exc()
+        print('Error in /GetAccuracyFromRecordedAudio:', str(e))
+        print(tb)
+        # IMPORTANT: callbacks.js expects JSON here (res.json()).
+        # Return a JSON string (not a lambda-style {body: ...} wrapper).
+        return json.dumps({'error': str(e), 'traceback': tb})
 
     return lambda_correct_output
 

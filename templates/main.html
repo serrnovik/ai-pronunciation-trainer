@@ -12,8 +12,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     </script>
+    <link rel="icon" type="image/png" href="../static/favicon.png">
     <link rel="stylesheet" href="../static/css/style-new.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/3.5.0/css/flag-icon.min.css">
+    <script src="https://unpkg.com/wavesurfer.js@7"></script>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/record.min.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
     <script src="../static/javascript/callbacks.js"></script>
 
 
@@ -32,7 +36,8 @@
     <!-- Header -->
     <nav class="app-header">
         <div class="header-left">
-            <i class="material-icons icon-text-home" onclick="history.go(0)" title="Reload">home</i>
+            <img  src="../static/icon.png" class="app-logo" alt="App Logo" onclick="history.go(0)" style="cursor: pointer;">
+            <!-- <i class="material-icons icon-text-home" onclick="history.go(0)" title="Reload">home</i> -->
             <h1 id='main_title'>AI Pronunciation Trainer</h1>
         </div>
         
@@ -75,10 +80,10 @@
             
             <!-- Left Controls (Playback) -->
             <div class="controls-sidebar">
-                <a id="playSampleAudio" href="javascript:playAudio()" class="round-button disabled" title="Play Reference (Ctrl + Enter)">
+                <a id="playSampleAudio" href="javascript:playAudio()" class="round-button disabled" title="Play Reference (Shift + Space)">
                     <i class="material-icons icon-text">play_arrow</i>
                 </a>
-                <a id="playRecordedAudio" href="javascript:playRecording()" class="round-button disabled" title="Play Recording (Shift + Enter)">
+                <a id="playRecordedAudio" href="javascript:playRecording()" class="round-button disabled" title="Play Recording (Space)">
                     <i class="material-icons icon-text">record_voice_over</i>
                 </a>
                  <p id="pronunciation_accuracy" class="accuracy-badge">-</p>
@@ -87,9 +92,15 @@
             <!-- Center Text Area -->
             <div id="text-area" class="text-content">
                  <p id="original_script" class="main-text text-primary" contenteditable>Click on the bar on the right to generate a new sentence (please use web browser).</p>
+                
+                <!-- Waveforms -->
+                <div id="waveform-reference" class="waveform-container"></div>
+                <div id="waveform-recorder" class="waveform-container"></div>
+
                 <p id="ipa_script" class="ipa-text text-muted">Before speaking, click on the mic button below to start recording and then click again when you're done.</p>
                 <p id="recorded_ipa_script" class="ipa-text text-primary">On the left bottom you can choose the difficulty. On the upper left you can choose the language.</p>
-                <p id="translated_script" class="ipa-text-small text-muted">The corresponding IPA reading of each sentence will also be displayed.</p>
+                <p class="small-text"><b>Shortcuts:</b> Space to play your sound, Shift + Space to play the example, Arrow Down to record.</p>
+                <p id="translated_script" class="ipa-text-small text-muted" style="display: none;">English translation will appear here for non-English languages.</p>
                 
                  <!-- Legend (Hidden on small screens) -->
                 <div class="legend-container">
@@ -99,7 +110,8 @@
 
             <!-- Right Controls (Next) -->
             <div class="next-sidebar">
-                 <button id="buttonNext" class="button-next" onclick="javascript:getNextSample()" title="Next Sample (→)">
+                 <button id="buttonNext" class="button-next" onclick="javascript:getNextSample()" title="Next Sample (Right Arrow)">
+                    <i class="material-icons" style="font-size: 2rem; color: white;">arrow_forward</i>
                 </button>
             </div>
             
@@ -111,21 +123,39 @@
         
         <!-- Difficulty Selector -->
         <div id="radio-difficulty" class="difficulty-level">
-            <input label="Random" type="radio" id="lengthCat1" name='length' onclick="javascript:getNextSample()">
-            <input label="Easy" type="radio" id="lengthCat2" name='length' checked onclick="javascript:getNextSample()">
+            <input label="Random" type="radio" id="lengthCat1" name='length' checked onclick="javascript:getNextSample()">
+            <input label="Easy" type="radio" id="lengthCat2" name='length' onclick="javascript:getNextSample()">
             <input label="Medium" type="radio" id="lengthCat3" name='length' onclick="javascript:getNextSample()">
             <input label="Hard" type="radio" id="lengthCat4" name='length' onclick="javascript:getNextSample()">
+            <input label="Custom" type="radio" id="modeCustom" name='length' onclick="javascript:toggleCustomMode()">
+        </div>
+
+        <!-- Custom Text Input (Hidden by default) -->
+        <div id="custom-text-container" style="display: none; position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; z-index: 1000; width: 90%; max-width: 600px;">
+            <textarea id="customTextInput" placeholder="Enter your text here..." style="width: 100%; height: 100px; margin-bottom: 10px; background: #333; color: white; border: 1px solid #555; padding: 5px;"></textarea>
+            <div style="display: flex; justify-content: space-between; align-items: center; color: white;">
+                <div>
+                     <label style="margin-right: 10px;"><input type="radio" name="splitMode" value="sentence" checked> Sentence</label>
+                     <label style="margin-right: 10px;"><input type="radio" name="splitMode" value="comma"> Phrase (Comma)</label>
+                     <label><input type="radio" name="splitMode" value="word"> Word</label>
+                </div>
+                <div>
+                    <button onclick="fetchWikiArticle()" style="background: #e91e63; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Fetch Wiki</button>
+                    <button onclick="startCustomPractice()" style="background: #2196F3; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Start Practice</button>
+                </div>
+            </div>
+             <button onclick="closeCustomMode()" style="position: absolute; top: 5px; right: 5px; background: none; border: none; color: white; cursor: pointer;">✕</button>
         </div>
 
         <!-- Mic Button (Centered) -->
         <div id="btn-record" class="mic-container">
-            <a id="recordAudio" href="javascript:updateRecordingState()" class="round-button-mic disabled" title="Record (Space)">
+            <a id="recordAudio" href="javascript:updateRecordingState()" class="round-button-mic disabled" title="Record (Arrow Down)">
                 <i id="recordIcon" class="material-icons icon-text-mic">mic</i>
             </a>
         </div>
         
         <!-- Credits/Links -->
-        <div class="footer-links">
+        <!-- <div class="footer-links">
              <p class="credits-text">By Thiago Lobato.</p>
             <a href="https://github.com/Thiagohgl/ai-pronunciation-trainer" target="_blank" class="link-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="svg-icon">
@@ -137,7 +167,7 @@
                     <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
                 </svg>
             </a>
-        </div>
+        </div> -->
     </footer>
 
 </body>

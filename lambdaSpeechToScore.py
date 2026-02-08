@@ -12,6 +12,7 @@ import numpy as np
 from torchaudio.transforms import Resample
 import io
 import tempfile
+import traceback
 
 trainer_SST_lambda = {}
 trainer_SST_lambda['de'] = pronunciationTrainer.getTrainer("de")
@@ -26,22 +27,30 @@ def lambda_handler(event, context):
 
     data = json.loads(event['body'])
 
-    real_text = data['title']
-    file_bytes = base64.b64decode(
-        data['base64Audio'][22:].encode('utf-8'))
-    language = data['language']
+    real_text = data.get('title', '') or ''
+    language = data.get('language', 'en')
+    base64_audio = data.get('base64Audio', '') or ''
 
-    if len(real_text) == 0:
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Access-Control-Allow-Headers': '*',
-                'Access-Control-Allow-Credentials': "true",
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
-            },
-            'body': ''
-        }
+    # Warm-up / guard rails: the frontend sometimes calls this endpoint with empty
+    # audio to "initialize" the server. Trying to decode an empty/invalid audio
+    # blob can trigger backend decoder edge-cases (including ValueError unpacking).
+    if len(real_text) == 0 or len(base64_audio) == 0:
+        return json.dumps({'ok': True})
+
+    # Accept both "data:audio/...;base64,AAAA" and raw base64 strings
+    if ',' in base64_audio:
+        base64_audio = base64_audio.split(',', 1)[1]
+
+    if len(base64_audio.strip()) == 0:
+        return json.dumps({'ok': True})
+
+    try:
+        file_bytes = base64.b64decode(base64_audio.encode('utf-8'))
+    except Exception as e:
+        return json.dumps({'error': f'Invalid base64Audio: {e}', 'traceback': traceback.format_exc()})
+
+    if len(file_bytes) == 0:
+        return json.dumps({'error': 'Empty audio payload'})
 
     tmp = tempfile.NamedTemporaryFile(suffix=".ogg", delete=False)
     tmp_name = tmp.name
@@ -58,7 +67,23 @@ def lambda_handler(event, context):
 
         os.remove(tmp_name)
 
-    signal = transform(torch.Tensor(signal)).unsqueeze(0)
+    # Ensure mono
+    if isinstance(signal, np.ndarray) and signal.ndim > 1:
+        # audioread_load returns shape (channels, n) for multi-channel audio
+        signal = np.mean(signal, axis=0)
+
+    if len(signal) == 0:
+        return json.dumps({'error': 'Decoded audio is empty'})
+
+    # Resample using the actual detected sample rate (MediaRecorder is not always 48kHz)
+    if fs != 16000:
+        resampler = Resample(orig_freq=fs, new_freq=16000)
+        signal = resampler(torch.Tensor(signal))
+    else:
+        signal = torch.Tensor(signal)
+
+    # Shape expected by downstream models: [1, n_samples]
+    signal = signal.unsqueeze(0)
 
     result = trainer_SST_lambda[language].processAudioForGivenText(
         signal, real_text)

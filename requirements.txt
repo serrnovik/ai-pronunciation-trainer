@@ -15,4 +15,4 @@ pickle-mixin
 sqlalchemy
 transformers
 sentencepiece
-transformers
+num2words

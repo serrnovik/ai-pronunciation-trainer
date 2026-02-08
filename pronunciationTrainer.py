@@ -14,7 +14,7 @@ import time
 
 def getTrainer(language: str):
 
-    asr_model = mo.getASRModel(language,use_whisper=True)
+    asr_model = mo.getASRModel(language,use_whisper=False)
     
     if language == 'de':
         phonem_converter = RuleBasedModels.EpitranPhonemConverter(
